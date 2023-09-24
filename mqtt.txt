@@ -1,0 +1,33 @@
+/home/edu/mqtt_transplant/pc/openssl_install/lib   【运行的时候依赖这个】
+
+/home/edu/mqtt_transplant/pc/mqtt_install/home/xh/share/debug/mqtt/pc/mqtt_install/include   【libmosquitto的头文件路径】
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/edu/mqtt_transplant/pc/mqtt_install/home/xh/share/debug/mqtt/pc/mqtt_install/lib
+ libmosquit 【C语言的库】
+
+
+ps -A | grep mosq* 【运行查看】
+
+vim .bashrc 【属性路径设置】
+
+GG，到最底部
+
+create trigger mydate after delete on stu
+   ...> begin delete from newstu where id=old.id;
+   ...> end;
+
+
+[11:07:21.213]收←◆收到了第7消息:
+数据包是从15号端点进来的,匹配上了输入簇2,数据包内容是:  len=30,data=rt,addr=0x9D8A,tep=28,hum=70
+
+
+
+
+
+
+
+
+
+
+
+

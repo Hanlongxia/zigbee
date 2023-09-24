@@ -1,0 +1,138 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <mosquitto.h>
+//这头文件里就是咱们libmosquito 这C库提供函数接口
+
+#include <time.h>
+
+	char *topic1 = "topc1";
+	char *topic2 = "topc2";
+	
+// 消息回调
+void my_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg)
+{
+	time_t t;
+	struct tm *lt;
+	time(&t);
+	lt =  localtime(&t);//拿到当前时间，打印出来
+	printf("%d.%d.%d %d:%d:%d ",lt->tm_year+1900,lt->tm_mon,lt->tm_mday,lt->tm_hour,lt->tm_min,lt->tm_sec);
+	//消息的主题是什么，消息的内容是什么
+	printf("%d:topic(%s)->%s\n",__LINE__,(char *)msg->topic,(char *)msg->payload);	
+}
+
+// 订阅消息回调
+void my_subscribe_callback(struct mosquitto *mosq, void *obj, int mid,int qos_count,const int *granted_qos)
+{
+	int i;
+	time_t t;
+	struct tm *lt;
+	time(&t);
+	lt =  localtime(&t);
+	printf("%d: %s\n",__LINE__,(char *)obj);
+	printf("%d: mid=%d\n",__LINE__,mid);
+	printf("%d: qos_count=%d\n",__LINE__,qos_count);
+	for(i=0;i<qos_count;i++)
+		printf("%d: granted_qos[%d]=%d\n",__LINE__,i,granted_qos[i]);
+}
+
+
+void  *mypcbptr(void *arg)
+{
+	 struct mosquitto *m_hMqtt1;
+	m_hMqtt1 = mosquitto_new("pcbsub", true, "data");//申请客户端
+	
+	//注册订阅 和消息回调
+	
+    mosquitto_message_callback_set(m_hMqtt1, my_message_callback);//设置一个消息回调函数
+	//当订阅者收到来自服务器的订阅主题发布的消息的时候，那么就会来调用my_message_callback
+
+	//订阅者订阅时候的回调函数
+	mosquitto_subscribe_callback_set(m_hMqtt1, my_subscribe_callback);
+	
+	
+	
+	if(MOSQ_ERR_SUCCESS == mosquitto_connect(m_hMqtt1, "5.196.95.208", 1883, 20))
+		puts("pcbsub连接服务器成功");
+	else
+		puts("pcbsub连接服务器失败");	
+	
+	
+	 mosquitto_subscribe(m_hMqtt1,NULL,"topc2",1);//订阅一个主题temp
+	
+    mosquitto_loop_start(m_hMqtt1);//这个是一个阻塞函数，只有当ctr+c才会退出
+	//在这个阻塞函数，不断去判断当前订阅主题有没有来消息
+	
+	/* 阻塞等待 */
+	mosquitto_loop_stop(m_hMqtt1, false);
+	
+	mosquitto_destroy(m_hMqtt1);
+	
+	
+	 return NULL;
+}
+
+//执行这个可执行程序相当于
+// mosquitto_pub  -t temp -m "hello"  -h 10.36.145.147
+int main(int argc,char *argv[])
+{
+	struct mosquitto *m_hMqtt;//用来存客户端
+
+	
+	char *content = "hello world";
+	
+	//初始化lib库函数
+	mosquitto_lib_init();//初始化 libmosquit这个库
+	
+	
+	//创建线程
+	 pthread_t pcbsubptr=0;
+	 pthread_create(&pcbsubptr,NULL,mypcbptr,NULL);
+	 pthread_detach(pcbsubptr);
+	 
+	 
+	
+	
+	
+	
+    // 定义一个客户端名为subtest的发布端。客户端表示订阅端的唯一性
+	//如果你要连接一个MQtt服务器，你必须要求当前客户端的名称与已经连在MQTT服务器上的客户端名字必须不一样
+    //保证名称的唯一性
+	m_hMqtt = mosquitto_new("pcbpub", true, "data");//申请客户端
+
+
+	
+	//开始连接服务器
+	// 第一个参数是客户端
+	//第二个参数MQTT服务器的IP  
+	//第三是MQTT服务器订阅和发布端口 1883
+	//连接时间
+	if(MOSQ_ERR_SUCCESS == mosquitto_connect(m_hMqtt, "5.196.95.208", 1883, 20))
+		puts("pcbpub连接服务器成功");
+	else
+		puts("pcbpub连接服务器失败");
+	
+	 char buff[100]={0};
+	 while(1)
+	 {
+		   memset(buff, 0, sizeof(buff));
+		   fgets(buff,100,stdin);//从屏幕终端去拿发布内容,当没有输入会阻塞
+		   //buff存是什么  XXXX   XXXX\n
+		   buff[strlen(buff)-1]=0;//'\0'  NULL 0
+		    //当前的发布客户端，发布主题temp  内容"hello"
+   	       //以信号质量1 QoS1 方式交互
+	       mosquitto_publish(m_hMqtt,NULL,"topc1",strlen(buff)+1,buff,1,true);
+		   
+		   printf("当前pcbpub发布一个消息!!\n");
+
+		 
+	 }
+
+	
+	mosquitto_destroy(m_hMqtt);//销毁申请的客户端
+
+    mosquitto_lib_cleanup();//清除这个libmosquit
+	return 0;
+}
